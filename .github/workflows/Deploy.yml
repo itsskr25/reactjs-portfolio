@@ -23,35 +23,35 @@ jobs:
       run: CI=false npm run build
     - name: Set Up SSH Key
       env:
-        PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+        PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       run: |
-        echo "$PRIVATE_KEY" > TGW-peering.pem
+        echo "$SSH_PRIVATE_KEY" > TGW-peering.pem
         chmod 600 TGW-peering.pem
     - name: Adjust Permissions on EC2
       env:
-        EC2_IP: ${{ secrets.EC2_IP }}
+        EC2_IP: ${{ secrets.EC2_HOST }}
       run: |
         eval $(ssh-agent -s)
         chmod 600 TGW-peering.pem
         ssh-add TGW-peering.pem
-        ssh -i TGW-peering.pem ubuntu@18.207.227.166
+        ssh -i TGW-peering.pem ubuntu@52.91.85.194
         sudo mkdir -p /var/www/react-app
-        ssh -o StrictHostKeyChecking=no -i TGW-peering.pem ubuntu@$EC2_IP "sudo chown -R ubuntu:ubuntu /var/www/react-app"
+        ssh -o StrictHostKeyChecking=no -i TGW-peering.pem ubuntu@$EC2_HOST "sudo chown -R ubuntu:ubuntu /var/www/react-app"
     - name: Deploy to EC2
       env:
-        EC2_IP: ${{ secrets.EC2_IP }}
+        EC2_IP: ${{ secrets.EC2_HOST }}
       run: |
-        scp -o StrictHostKeyChecking=no -i TGW-peering.pem -r ./build ubuntu@$EC2_IP:/var/www/react-app
+        scp -o StrictHostKeyChecking=no -i TGW-peering.pem -r ./build ubuntu@$EC2_HOST:/var/www/react-app
     - name: Reset Permissions on EC2
       env:
-        EC2_IP: ${{ secrets.EC2_IP }}
+        EC2_IP: ${{ secrets.EC2_HOST }}
       run: |
-        ssh -o StrictHostKeyChecking=no -i TGW-peering.pem ubuntu@$EC2_IP "sudo chown -R www-data:www-data /var/www/react-app/build"
+        ssh -o StrictHostKeyChecking=no -i TGW-peering.pem ubuntu@$EC2_HOST "sudo chown -R www-data:www-data /var/www/react-app/build"
     - name: Install and Configure Nginx
       env:
-        EC2_IP: ${{ secrets.EC2_IP }}
+        EC2_IP: ${{ secrets.EC2_HOST }}
       run: |
-        ssh -o StrictHostKeyChecking=no -T -i TGW-peering.pem ubuntu@$EC2_IP <<-EOF
+        ssh -o StrictHostKeyChecking=no -T -i TGW-peering.pem ubuntu@$EC2_HOST <<-EOF
           sudo apt update
           sudo apt install -y nginx
           sudo systemctl start nginx
@@ -60,7 +60,7 @@ jobs:
           # Use escaped variables for \$uri and \$uri/ to ensure they are not expanded by the shell
           echo "server {
               listen 80;
-              server_name $EC2_IP;
+              server_name $EC2_HOST;
               location / {
                   root /var/www/react-app/build;
                   index index.html;
@@ -78,6 +78,6 @@ jobs:
         EOF
     - name: Check Deployment
       env:
-        EC2_IP: ${{ secrets.EC2_IP }}
+        EC2_IP: ${{ secrets.EC2_HOST }}
       run: |
-        echo "Visit http://$EC2_IP to see your deployed React application deployed."
+        echo "Visit http://$EC2_HOST to see your deployed React application deployed."
